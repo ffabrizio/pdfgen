@@ -3,6 +3,7 @@ using Rotativa;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 
@@ -11,13 +12,14 @@ namespace PdfGenerator
     class Program
     {
         private static readonly HttpClient _client = new HttpClient();
+        private static readonly string _baseDir = @"C:\Source\PdfGenerator\PdfGenerator\Rotativa\";
         private static readonly string _domain = "https://www.nfumutual.co.uk";
         private static readonly IDictionary<int, int> _views = new Dictionary<int, int>
         {
-            { 4, 430 },
-            { 3, 768 },
-            { 2, 1440 },
-            { 1, 1440 }
+            { 4, 432 },
+            { 3, 770 },
+            { 2, 1442 },
+            { 1, 1442 }
         };
 
         static void Main(string[] args)
@@ -53,10 +55,13 @@ namespace PdfGenerator
             var pdfExecutionTime = DateTime.Now.Subtract(startTime).TotalMilliseconds - mergeExecutionTime;
             Console.WriteLine($"Done generating PDF in {pdfExecutionTime} milliseconds");
 
-            var filePath = $@"C:\Source\PdfGenerator\PdfGenerator\out\{Guid.NewGuid()}.pdf";
+            var filePath = $@"{_baseDir}out\{Guid.NewGuid()}.pdf";
             File.WriteAllBytes(filePath, pdfBits);
             var pdfSaveTime = DateTime.Now.Subtract(startTime).TotalMilliseconds - pdfExecutionTime;
             Console.WriteLine($"Done saving PDF in {pdfSaveTime} milliseconds");
+
+
+            File.WriteAllText(filePath.Replace(".pdf", ".html"), mergedView);
 
 
             Console.WriteLine($"Finished! PDF saved in {filePath}");
@@ -82,17 +87,22 @@ namespace PdfGenerator
 
             var result = new HtmlDocument();
             result.LoadHtml(pages[0].Html);
-            result.DocumentNode.SelectSingleNode("//body").InnerHtml = "";
+
+            var resultBody = result.DocumentNode.SelectSingleNode("//body");
+            resultBody.InnerHtml = "";
+            resultBody.Attributes.RemoveAll();
 
             var pageBreak = "<div style=\"page-break-after:always;\">";
-            var widthWrapFormat = "<div style=\"width:{0}px;\">{1}</div>";
+            var widthWrapFormat = "<div class=\"{0}\" style=\"width:{1}px;\">{2}</div>";
             for (var counter = 0; counter < pages.Length; counter++)
             {
                 var page = pages[counter];
                 var doc = new HtmlDocument();
                 doc.LoadHtml(page.Html);
-                var pageBody = doc.DocumentNode.SelectSingleNode("//body").InnerHtml;
-                var wrappedBody = string.Format(widthWrapFormat, page.Width, pageBody);
+                var pageBody = doc.DocumentNode.SelectSingleNode("//body");
+                var bodyCssClasses = pageBody.Attributes["class"].Value;
+                var pageHtml = pageBody.InnerHtml;
+                var wrappedBody = string.Format(widthWrapFormat, bodyCssClasses, page.Width, pageHtml);
 
 
                 result.DocumentNode.SelectSingleNode("//body").InnerHtml += wrappedBody;
@@ -107,11 +117,12 @@ namespace PdfGenerator
 
         private byte[] GeneratePdf(string html)
         {
-            const string switchPageOffset = "--page-offset 0";
             const string switchDisableJavascript = "--disable-javascript";
+            //const string enableJavascriptWithDelay = "--javascript-delay 2000";
+            //const string disableSmartShrinking = "--disable-smart-shrinking";
 
-            var pdf = WkhtmltopdfDriver.ConvertHtml(@"C:\Source\PdfGenerator\PdfGenerator\Rotativa\",
-                $"{switchPageOffset} {switchDisableJavascript}",
+            var pdf = WkhtmltopdfDriver.ConvertHtml(_baseDir,
+                $"{switchDisableJavascript}",
                 html);
 
             return pdf;
@@ -131,6 +142,10 @@ namespace PdfGenerator
             // Images
             foreach (var link in result.DocumentNode.SelectNodes("//img"))
             {
+                if (link.Attributes["data-set"] != null) {
+                    var bestImg = link.Attributes["data-set"].Value.Split(';').Last();
+                    link.Attributes["src"].Value = bestImg;
+                }
                 if (!link.Attributes["src"].Value.StartsWith("http"))
                 {
                     link.Attributes["src"].Value = _domain + link.Attributes["src"].Value;
@@ -164,6 +179,7 @@ namespace PdfGenerator
 
             }
 
+            
             return result.DocumentNode.OuterHtml;
         }
     }
