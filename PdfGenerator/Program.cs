@@ -33,9 +33,12 @@ namespace PdfGenerator
         private async Task Run(int contentId, int workId)
         {
             Console.WriteLine("Running...");
+            var savePath = $@"{_baseDir}out\{contentId}_{workId}";
+            Directory.CreateDirectory(savePath);
 
             var startTime = DateTime.Now;
             var results = new List<HtmlResult>();
+            
 
             foreach (var key in _views.Keys)
             { 
@@ -55,16 +58,16 @@ namespace PdfGenerator
             var pdfExecutionTime = DateTime.Now.Subtract(startTime).TotalMilliseconds - mergeExecutionTime;
             Console.WriteLine($"Done generating PDF in {pdfExecutionTime} milliseconds");
 
-            var filePath = $@"{_baseDir}out\{Guid.NewGuid()}.pdf";
-            File.WriteAllBytes(filePath, pdfBits);
+            var filePath = $@"{savePath}\{contentId}_{workId}";
+            File.WriteAllBytes($"{filePath}.pdf", pdfBits);
             var pdfSaveTime = DateTime.Now.Subtract(startTime).TotalMilliseconds - pdfExecutionTime;
             Console.WriteLine($"Done saving PDF in {pdfSaveTime} milliseconds");
 
 
-            File.WriteAllText(filePath.Replace(".pdf", ".html"), mergedView);
+            File.WriteAllText($"{filePath}.html", mergedView);
 
 
-            Console.WriteLine($"Finished! PDF saved in {filePath}");
+            Console.WriteLine($"Finished! PDF saved in {filePath}.pdf from {filePath}.html");
             Console.WriteLine();
             Console.WriteLine("Press any key to exit...");
             Console.ReadLine();

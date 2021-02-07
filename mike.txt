@@ -1,0 +1,46 @@
+Hey, so the issue is that for the breakpoints to correctly register you need to use the —viewport-size switch. You’ll need to keep the wrapping div with a fixed width, and split it out into separate desktop/tablet and mobile files. You’ll also need to use the —zoom switch to get everything scaled correctly to fit on the page.
+Here’s the test program, note how the text in the exported pdf will be red, specified by the breakpoint.
+
+
+using System.IO;
+
+namespace HTMLtoPDF
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            Rotativa.Core.DriverOptions rotativaOptions = new Rotativa.Core.DriverOptions()
+            {
+                WkhtmltopdfPath = "C:\\Program Files (x86)\\wkhtmltopdf\\bin",
+                CustomSwitches = "--viewport-size 1000x800 --disable-smart-shrinking --zoom 0.65",
+            };
+
+            var html = @"
+              <html>
+              <head>
+                  <style>
+                  h1 {
+                      color: green;
+                  }
+                  @media(min-width: 1000px) {
+                      h1 {
+                          color: red;
+                      }
+                  }
+                  </style>
+              </head>
+              <body>
+                  <div style='width: 1000px; background: #ECECEC;'>
+                      <h1>Test<h1>
+                  </div>
+              </body>
+              </html>
+            ";
+
+
+            var data = Rotativa.Core.WkhtmltopdfDriver.ConvertHtml(rotativaOptions, html);
+            File.WriteAllBytes("out.pdf", data);
+        }
+    }
+}
